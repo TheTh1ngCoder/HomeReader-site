@@ -1,28 +1,317 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>HomeReader</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="HomeReader — читалка FB2, EPUB, PDF и TXT для смартфонов Huawei на HarmonyOS NEXT. Без регистрации и слежки: книги хранятся только на телефоне.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="HomeReader — читалка для HarmonyOS">
+<meta property="og:description" content="FB2, EPUB, PDF и TXT на смартфонах Huawei. Серии с проверкой новых томов, ИИ со своим ключом, без регистрации.">
+<meta property="og:image" content="https://theth1ngcoder.github.io/HomeReader-site/img/og.png">
+<meta property="og:url" content="https://theth1ngcoder.github.io/HomeReader-site/">
+<link rel="icon" type="image/png" href="img/icon-64.png">
+<link rel="apple-touch-icon" href="img/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&display=swap">
 <style>
-  body { font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; max-width: 760px; margin: 0 auto; padding: 24px 16px 64px; color: #1a1a1a; line-height: 1.55; background: #faf9f7; }
-  h1 { font-size: 1.6em; margin-bottom: 0.2em; }
-  .muted { color: #6b6b6b; }
-  a { color: #a54d1c; }
+/* Layout: a reading app's own surfaces — a light page, the phone with a real book in the hero, the app's single rust accent. */
+:root {
+  --bg: #faf9f7;          /* the app's Light theme */
+  --surface: #f2eee7;
+  --fg: #1f1b17;
+  --muted: #675e55;
+  --line: #e2dbd0;
+  --accent: #c8632a;      /* DESIGN.md brand accent */
+  --accent-strong: #a64d1b;
+  --on-accent: #ffffff;
+  --phone: #1c1a18;
+  --font-display: "Literata", "PT Serif", Georgia, "Times New Roman", serif;
+  --font-body: "Golos Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --step-0: 1rem;
+  --step-1: 1.125rem;
+  --step-2: 1.5rem;
+  --step-3: clamp(1.9rem, 1.2rem + 2.6vw, 3rem);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161412; --surface: #201d1a; --fg: #ece5d9; --muted: #a59b8d; --line: #34302b;
+    --accent: #e0864f; --accent-strong: #e0864f; --on-accent: #1a120c;
+    --phone: #0c0b0a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #161412; --surface: #201d1a; --fg: #ece5d9; --muted: #a59b8d; --line: #34302b;
+  --accent: #e0864f; --accent-strong: #e0864f; --on-accent: #1a120c;
+  --phone: #0c0b0a;
+  color-scheme: dark;
+}
+
+/* Language: Russian shows by default; the switch (or an English browser) sets data-lang="en". */
+:root:not([data-lang="en"]) [lang="en"] { display: none !important; }
+:root[data-lang="en"] [lang="ru"] { display: none !important; }
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: var(--step-0);
+  line-height: 1.6;
+}
+img { max-width: 100%; display: block; }
+a { color: var(--accent-strong); text-underline-offset: 0.18em; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 600; line-height: 1.15; text-wrap: balance; margin: 0; }
+p { margin: 0; }
+
+.wrap {
+  max-width: 68rem;
+  margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+/* Header */
+.top { padding-block: 18px; }
+.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.brand { display: flex; align-items: center; gap: 10px; color: var(--fg); text-decoration: none; font-weight: 600; font-size: var(--step-1); }
+.brand img { width: 36px; height: 36px; border-radius: 9px; }
+.langs { display: flex; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 999px; }
+.langs button {
+  font: 500 0.8125rem/1 var(--font-body); letter-spacing: 0.06em;
+  color: var(--muted); background: transparent; border: 0; border-radius: 999px;
+  padding: 7px 11px; cursor: pointer;
+}
+.langs button[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
+
+/* Hero */
+.hero { padding-block: clamp(24px, 5vw, 56px) clamp(40px, 7vw, 88px); }
+.hero .wrap { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr); gap: clamp(32px, 6vw, 72px); align-items: center; }
+.hero-copy { display: grid; gap: 22px; min-width: 0; }
+.eyebrow { font-size: 0.8125rem; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.hero h1 { font-size: var(--step-3); letter-spacing: -0.01em; }
+.lead { font-size: var(--step-1); color: var(--muted); max-width: 36em; }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 10px;
+  background: var(--accent-strong); color: var(--on-accent);
+  font: 600 1rem/1 var(--font-body); text-decoration: none;
+  padding: 15px 22px; border-radius: 12px;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+.btn:hover { filter: brightness(1.06); transform: translateY(-1px); }
+.btn svg { width: 18px; height: 18px; flex: none; }
+.formats { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin: 0; padding: 0; }
+.formats li {
+  font: 500 0.8125rem/1 var(--font-body); letter-spacing: 0.04em;
+  color: var(--fg); background: var(--surface); border: 1px solid var(--line);
+  padding: 7px 10px; border-radius: 7px; font-variant-numeric: tabular-nums;
+}
+.phone {
+  justify-self: center; width: min(300px, 72vw);
+  padding: 9px; border-radius: 38px; background: var(--phone);
+  box-shadow: 0 30px 60px -28px rgba(40, 24, 10, 0.45);
+}
+.phone img { border-radius: 30px; aspect-ratio: 9 / 16; width: 100%; height: auto; object-fit: cover; }
+
+/* Sections */
+section { padding-block: clamp(40px, 7vw, 80px); }
+.section-head { display: grid; gap: 10px; max-width: 40em; margin-bottom: clamp(24px, 4vw, 40px); }
+.section-head h2 { font-size: var(--step-2); }
+.section-head p { color: var(--muted); }
+.band { background: var(--surface); }
+
+
+/* Screens */
+.shots { overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 12px; }
+.shots ol { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(170px, 210px); gap: 18px; list-style: none; margin: 0; padding: 0; }
+.shots li { scroll-snap-align: start; display: grid; gap: 10px; }
+.shots img { border-radius: 18px; border: 1px solid var(--line); aspect-ratio: 9 / 16; width: 100%; height: auto; object-fit: cover; background: var(--surface); }
+.shots figcaption { font-size: 0.875rem; color: var(--muted); }
+.shots figure { margin: 0; display: grid; gap: 10px; }
+
+/* Features */
+.features { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 clamp(24px, 4vw, 48px); list-style: none; margin: 0; padding: 0; }
+.features li { display: grid; gap: 8px; align-content: start; padding-block: 22px; border-top: 1px solid var(--line); min-width: 0; }
+.features h3 { font-family: var(--font-body); font-size: var(--step-1); font-weight: 600; }
+.features h3 .spark { color: var(--accent); }
+.features p { color: var(--muted); }
+
+/* Privacy */
+.privacy .wrap { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: clamp(24px, 5vw, 64px); align-items: start; }
+.privacy h2 { font-size: var(--step-2); }
+.privacy ul { display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }
+.privacy li { padding-left: 22px; position: relative; color: var(--fg); }
+.privacy li::before { content: ""; position: absolute; left: 0; top: 0.62em; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+.privacy .more { margin-top: 18px; }
+
+/* Footer */
+footer { border-top: 1px solid var(--line); padding-block: 28px 40px; color: var(--muted); font-size: 0.875rem; }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 10px 28px; align-items: center; justify-content: space-between; }
+footer nav { display: flex; flex-wrap: wrap; gap: 8px 22px; }
+footer .mail { user-select: all; }
+
+@media (max-width: 820px) {
+  .hero .wrap, .privacy .wrap { grid-template-columns: minmax(0, 1fr); }
+  .phone { width: min(260px, 70vw); }
+  .features { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .features { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn { transition: none; }
+  .btn:hover { transform: none; }
+}
 </style>
 </head>
 <body>
 
-<h1>HomeReader</h1>
-<p class="muted">An e-book reader for HarmonyOS · Читалка электронных книг для HarmonyOS</p>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="./"><img src="img/icon-192.png" alt="" width="36" height="36">HomeReader</a>
+    <div class="langs" role="group" aria-label="Язык / Language">
+      <button type="button" id="lang-ru" data-set-lang="ru" aria-pressed="true">RU</button>
+      <button type="button" id="lang-en" data-set-lang="en" aria-pressed="false">EN</button>
+    </div>
+  </div>
+</header>
 
-<p>FB2, EPUB, TXT and PDF on your device. No account, no analytics, no ads.</p>
-<p>FB2, EPUB, TXT и PDF на вашем устройстве. Без регистрации, аналитики и рекламы.</p>
+<main>
+  <section class="hero">
+    <div class="wrap">
+      <div class="hero-copy">
+        <p class="eyebrow"><span lang="ru">Для смартфонов Huawei на HarmonyOS NEXT</span><span lang="en">For Huawei phones on HarmonyOS NEXT</span></p>
+        <h1><span lang="ru">Читалка для ваших книг</span><span lang="en">A reader for your own books</span></h1>
+        <p class="lead">
+          <span lang="ru">Без регистрации и слежки: библиотека, заметки и место чтения хранятся только на телефоне.</span>
+          <span lang="en">No sign-up, no tracking: your library, notes and reading positions stay on your phone.</span>
+        </p>
+        <div class="actions">
+          <a class="btn" href="https://appgallery.huawei.com/app/detail?id=com.homereader.app" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>
+            <span lang="ru">Скачать в AppGallery</span><span lang="en">Get it on AppGallery</span>
+          </a>
+          <a href="privacy-policy.html"><span lang="ru">Политика конфиденциальности</span><span lang="en">Privacy policy</span></a>
+        </div>
+        <ul class="formats" aria-label="Formats">
+          <li>FB2</li><li>FB2.ZIP</li><li>EPUB</li><li>PDF</li><li>TXT</li><li>ZIP</li><li>RAR</li>
+        </ul>
+      </div>
+      <div class="phone">
+        <img lang="ru" src="img/ru_2_read_p10.jpg" alt="«Капитанская дочка» в HomeReader" width="540" height="960">
+        <img lang="en" src="img/en_2_read.jpg" alt="The Adventures of Sherlock Holmes in HomeReader" width="540" height="960" loading="lazy">
+      </div>
+    </div>
+  </section>
 
-<ul>
-  <li><a href="privacy-policy.html">Privacy Policy</a> · <a href="privacy-policy.html#ru">Политика конфиденциальности</a></li>
-  <li>Contact · Контакты: <a href="mailto:th1ng.app@mail.ru">th1ng.app@mail.ru</a></li>
-</ul>
+  <section class="screens">
+    <div class="wrap">
+      <div class="section-head">
+        <h2><span lang="ru">Как это выглядит</span><span lang="en">A look inside</span></h2>
+      </div>
+      <div class="shots" tabindex="0" aria-label="Screenshots">
+        <ol lang="ru">
+          <li><figure><img src="img/ru_1_library_grid.jpg" alt="Библиотека с полками и сериями" width="540" height="960" loading="lazy"><figcaption>Библиотека и серии</figcaption></figure></li>
+          <li><figure><img src="img/ru_2_read_p10.jpg" alt="Страница книги" width="540" height="960" loading="lazy"><figcaption>Чтение</figcaption></figure></li>
+          <li><figure><img src="img/ru_3_settings.jpg" alt="Настройки оформления" width="540" height="960" loading="lazy"><figcaption>Оформление</figcaption></figure></li>
+          <li><figure><img src="img/ru_4_ai.jpg" alt="ИИ: действующие лица до текущей страницы" width="540" height="960" loading="lazy"><figcaption>ИИ: действующие лица</figcaption></figure></li>
+          <li><figure><img src="img/ru_5_dark.jpg" alt="Тёмная тема" width="540" height="960" loading="lazy"><figcaption>Тёмная тема</figcaption></figure></li>
+        </ol>
+        <ol lang="en">
+          <li><figure><img src="img/en_1_library.jpg" alt="Library with shelves and series" width="540" height="960" loading="lazy"><figcaption>Library and series</figcaption></figure></li>
+          <li><figure><img src="img/en_2_read.jpg" alt="A book page" width="540" height="960" loading="lazy"><figcaption>Reading</figcaption></figure></li>
+          <li><figure><img src="img/en_3_settings.jpg" alt="Appearance settings" width="540" height="960" loading="lazy"><figcaption>Appearance</figcaption></figure></li>
+          <li><figure><img src="img/en_4_ai.jpg" alt="AI: who's who up to the current page" width="540" height="960" loading="lazy"><figcaption>AI: who's who</figcaption></figure></li>
+          <li><figure><img src="img/en_5_dark.jpg" alt="Dark theme" width="540" height="960" loading="lazy"><figcaption>Dark theme</figcaption></figure></li>
+        </ol>
+      </div>
+    </div>
+  </section>
 
+  <section class="what">
+    <div class="wrap">
+      <div class="section-head">
+        <h2><span lang="ru">Что умеет</span><span lang="en">What it does</span></h2>
+      </div>
+      <ul class="features">
+        <li>
+          <h3><span lang="ru">Серии</span><span lang="en">Series</span></h3>
+          <p lang="ru">Книги одной серии собираются вместе. «Проверить серии» сверяет их с открытыми каталогами и показывает вышедшие тома, которых у вас ещё нет.</p>
+          <p lang="en">Books of one series are grouped. «Check series» compares them with open catalogs and shows the volumes that are out but not yet in your library.</p>
+        </li>
+        <li>
+          <h3><span class="spark" aria-hidden="true">✦ </span><span lang="ru">ИИ со своим ключом</span><span lang="en">AI with your own key</span></h3>
+          <p lang="ru">Краткий пересказ, «напомни, что было», действующие лица, вопросы по книге и перевод без спойлеров дальше текущей страницы. Подходит ключ любого OpenAI-совместимого провайдера.</p>
+          <p lang="en">Short summary, «catch me up», who's who, questions about the book and translation, with no spoilers past your page. Works with a key from any OpenAI-compatible provider.</p>
+        </li>
+        <li>
+          <h3><span lang="ru">Импорт</span><span lang="en">Import</span></h3>
+          <p lang="ru">Из «Файлов», через «Открыть с помощью» или всей папкой. Архивы ZIP и RAR распаковываются сами, уже добавленные книги не дублируются.</p>
+          <p lang="en">From Files, via «Open with» or a whole folder at once. ZIP and RAR archives unpack on their own, and books already in the library are skipped.</p>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="privacy band">
+    <div class="wrap">
+      <h2><span lang="ru">Книги остаются у вас</span><span lang="en">Your books stay with you</span></h2>
+      <div>
+        <ul lang="ru">
+          <li>Без учётной записи, аналитики и телеметрии.</li>
+          <li>Книги, заметки и место чтения хранятся только на телефоне.</li>
+          <li>ИИ работает с ключом выбранного вами провайдера: ключ лежит в защищённом системном хранилище, запросы идут напрямую провайдеру.</li>
+          <li>«Проверить серии» отправляет в открытые каталоги только имена авторов и названия серий, и только по вашему нажатию.</li>
+        </ul>
+        <ul lang="en">
+          <li>No account, no analytics, no telemetry.</li>
+          <li>Books, notes and reading positions stay on your phone.</li>
+          <li>AI uses the key of the provider you pick: it sits in the protected system keystore, and requests go straight to that provider.</li>
+          <li>«Check series» sends only author names and series titles to open catalogs, and only when you tap it.</li>
+        </ul>
+        <p class="more"><a href="privacy-policy.html" lang="en">Privacy policy</a><a href="privacy-policy.html#ru" lang="ru">Политика конфиденциальности</a></p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>HomeReader · © 2026 Th1ng</span>
+    <nav>
+      <a href="privacy-policy.html#ru" lang="ru">Политика конфиденциальности</a>
+      <a href="privacy-policy.html" lang="en">Privacy policy</a>
+      <span><span lang="ru">Почта:</span><span lang="en">Email:</span> <a class="mail" href="mailto:th1ng.app@mail.ru">th1ng.app@mail.ru</a></span>
+    </nav>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  function setLang(lang, remember) {
+    root.setAttribute('data-lang', lang);
+    root.setAttribute('lang', lang);
+    document.querySelectorAll('[data-set-lang]').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b.getAttribute('data-set-lang') === lang));
+    });
+    if (remember) { try { localStorage.setItem('hr-lang', lang); } catch (e) {} }
+  }
+  var saved = null;
+  try { saved = localStorage.getItem('hr-lang'); } catch (e) {}
+  var browser = (navigator.language || 'ru').toLowerCase();
+  setLang(saved || (/^(ru|uk|be|kk)/.test(browser) ? 'ru' : 'en'), false);
+  document.querySelectorAll('[data-set-lang]').forEach(function (b) {
+    b.addEventListener('click', function () { setLang(b.getAttribute('data-set-lang'), true); });
+  });
+})();
+</script>
 </body>
 </html>
